@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>WortBlitz</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4fc3f7">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   :root {
@@ -958,6 +960,9 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowRight')ans(true);
   if(e.key==='ArrowLeft')ans(false);
 });
+
+// Register service worker
+if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js');
 
 init();
 </script>
