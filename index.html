@@ -77,6 +77,12 @@
   .card-trans { font-size: 20px; font-weight: 600; color: var(--green); margin-bottom: 4px; }
   .card-trans-ru { font-size: 16px; color: var(--accent); }
   .tap-hint { font-size: 12px; color: var(--dim); margin-top: 10px; }
+  .speak-btn {
+    background: none; border: 1px solid #333; color: var(--dim); width: 36px; height: 36px;
+    border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center;
+    justify-content: center; position: absolute; top: 12px; left: 16px; transition: all 0.2s;
+  }
+  .speak-btn:hover { border-color: var(--accent); color: var(--accent); }
 
   .actions { display: flex; gap: 16px; width: 100%; max-width: 380px; }
   .btn-y, .btn-n {
@@ -251,6 +257,7 @@
   <div class="card-wrap" id="cardWrap" onclick="flip()">
     <div class="card" id="card">
       <div class="card-face card-front">
+        <button class="speak-btn" onclick="event.stopPropagation();speak(document.getElementById('cWord').textContent)">&#x1F50A;</button>
         <div class="card-lk" id="cLk"></div>
         <div class="card-word" id="cWord"></div>
         <div class="card-pl" id="cPl"></div>
@@ -294,6 +301,7 @@
       <button class="ls-end-btn" onclick="endLearn()">End</button>
     </div>
     <div class="ls-card" id="lsCard" onclick="revealLearn()">
+      <button class="speak-btn" onclick="event.stopPropagation();speak(document.getElementById('lsWord').textContent)">&#x1F50A;</button>
       <div class="ls-card-lk" id="lsLk"></div>
       <div class="ls-card-word" id="lsWord"></div>
       <div class="ls-card-hint" id="lsHint">tap to reveal</div>
@@ -859,6 +867,15 @@ function resetLearn(){
   document.getElementById('lsActive').style.display='none';
   document.getElementById('lsDone').style.display='none';
   renderLearnSetup();
+}
+
+// Pronunciation (Web Speech API)
+function speak(text){
+  if(!('speechSynthesis' in window))return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text.replace(/,\s*[-\u00a8].*/,''));
+  u.lang='de-DE';u.rate=0.85;
+  speechSynthesis.speak(u);
 }
 
 // Browse
