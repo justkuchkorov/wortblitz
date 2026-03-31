@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>WortBlitz</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0f0f1a;
+    --card-bg: #1a1a2e;
+    --accent: #4fc3f7;
+    --green: #66bb6a;
+    --red: #ef5350;
+    --orange: #ffa726;
+    --text: #e0e0e0;
+    --dim: #888;
+    --radius: 16px;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* Header */
+  .header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 14px 20px; border-bottom: 1px solid #222;
+  }
+  .header h1 { font-size: 22px; font-weight: 700; }
+  .header h1 span { color: var(--accent); }
+  .streak { background: #222; padding: 6px 14px; border-radius: 20px; font-size: 14px; font-weight: 600; }
+
+  /* Nav */
+  .nav { display: flex; border-bottom: 1px solid #222; background: #111; }
+  .nav button {
+    flex: 1; background: none; border: none; color: var(--dim);
+    padding: 12px; font-size: 13px; font-weight: 600; cursor: pointer;
+    border-bottom: 2px solid transparent; transition: all 0.2s;
+  }
+  .nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* Screens */
+  .screen { display: none; flex: 1; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* ── Flashcard Screen ── */
+  .learn { align-items: center; padding: 20px; }
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-bottom: 14px; }
+  .filters button {
+    background: #222; border: 1px solid #333; color: var(--dim);
+    padding: 5px 11px; border-radius: 20px; font-size: 12px; cursor: pointer;
+  }
+  .filters button.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  .pbar { width: 100%; max-width: 400px; height: 6px; background: #222; border-radius: 3px; margin-bottom: 6px; }
+  .pbar-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.3s; }
+  .ptext { font-size: 13px; color: var(--dim); margin-bottom: 18px; }
+
+  .card-wrap { perspective: 1000px; width: 100%; max-width: 380px; height: 260px; margin-bottom: 24px; cursor: pointer; }
+  .card { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.5s; }
+  .card.flipped { transform: rotateY(180deg); }
+  .card-face {
+    position: absolute; width: 100%; height: 100%; backface-visibility: hidden;
+    border-radius: var(--radius); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 24px; text-align: center;
+  }
+  .card-front { background: linear-gradient(145deg, #1a1a2e, #16213e); border: 1px solid #2a2a4a; }
+  .card-back { background: linear-gradient(145deg, #1b2a1b, #1a2e1a); border: 1px solid #2a4a2a; transform: rotateY(180deg); }
+  .card-lk { position: absolute; top: 12px; right: 16px; font-size: 11px; color: var(--dim); background: rgba(255,255,255,0.05); padding: 3px 8px; border-radius: 8px; }
+  .card-word { font-size: 28px; font-weight: 700; margin-bottom: 6px; line-height: 1.3; }
+  .card-pl { font-size: 13px; color: var(--dim); }
+  .card-trans { font-size: 20px; font-weight: 600; color: var(--green); margin-bottom: 4px; }
+  .card-trans-ru { font-size: 16px; color: var(--accent); }
+  .tap-hint { font-size: 12px; color: var(--dim); margin-top: 10px; }
+
+  .actions { display: flex; gap: 16px; width: 100%; max-width: 380px; }
+  .btn-y, .btn-n {
+    flex: 1; padding: 16px; border: none; border-radius: var(--radius);
+    font-size: 16px; font-weight: 700; cursor: pointer; transition: transform 0.1s;
+  }
+  .btn-y:active, .btn-n:active { transform: scale(0.95); }
+  .btn-y { background: var(--green); color: #000; }
+  .btn-n { background: var(--red); color: #fff; }
+
+  .empty { text-align: center; padding: 60px 20px; color: var(--dim); }
+  .empty h2 { font-size: 20px; margin-bottom: 8px; color: var(--text); }
+
+  /* ── Learn Session ── */
+  .learn-sess { padding: 20px; align-items: center; gap: 16px; }
+  .ls-setup { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 16px; }
+  .ls-section { background: var(--card-bg); border: 1px solid #222; border-radius: var(--radius); padding: 16px; }
+  .ls-section h3 { font-size: 13px; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+  .ls-modes { display: flex; flex-direction: column; gap: 6px; }
+  .ls-mode {
+    background: #222; border: 1px solid #333; color: var(--text); padding: 12px 16px;
+    border-radius: 12px; font-size: 14px; cursor: pointer; text-align: left;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .ls-mode:hover { border-color: var(--accent); }
+  .ls-mode.active { background: rgba(79,195,247,0.1); border-color: var(--accent); color: var(--accent); }
+  .ls-mode .ls-cnt { font-size: 12px; color: var(--dim); background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 8px; }
+  .ls-lks { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ls-lks button {
+    background: #222; border: 1px solid #333; color: var(--dim);
+    padding: 5px 10px; border-radius: 16px; font-size: 11px; cursor: pointer;
+  }
+  .ls-lks button.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .ls-go {
+    background: var(--accent); color: #000; border: none; padding: 16px; border-radius: var(--radius);
+    font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; transition: transform 0.1s;
+  }
+  .ls-go:active { transform: scale(0.97); }
+  .ls-go:disabled { opacity: 0.4; cursor: default; }
+  .ls-active { width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .ls-top { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+  .ls-end-btn { background: none; border: 1px solid #444; color: var(--dim); padding: 6px 14px; border-radius: 10px; font-size: 12px; cursor: pointer; }
+  .ls-end-btn:hover { border-color: var(--red); color: var(--red); }
+  .ls-prog { display: flex; align-items: center; gap: 10px; width: 100%; }
+  .ls-prog-bar { flex: 1; height: 6px; background: #222; border-radius: 3px; }
+  .ls-prog-fill { height: 100%; background: var(--green); border-radius: 3px; transition: width 0.3s; }
+  .ls-prog-text { font-size: 13px; color: var(--dim); white-space: nowrap; }
+  .ls-card {
+    width: 100%; min-height: 240px; background: linear-gradient(145deg, #1a1a2e, #16213e);
+    border: 1px solid #2a2a4a; border-radius: var(--radius); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 32px 24px; text-align: center;
+    cursor: pointer; transition: border-color 0.2s; position: relative;
+  }
+  .ls-card:hover { border-color: #3a3a6a; }
+  .ls-card-lk { position: absolute; top: 12px; right: 16px; font-size: 11px; color: var(--dim); background: rgba(255,255,255,0.05); padding: 3px 8px; border-radius: 8px; }
+  .ls-card-word { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .ls-card-hint { font-size: 12px; color: var(--dim); }
+  .ls-card-reveal { margin-top: 16px; padding-top: 16px; border-top: 1px solid #333; width: 100%; }
+  .ls-card-en { font-size: 20px; font-weight: 600; color: var(--green); margin-bottom: 4px; }
+  .ls-card-ru { font-size: 16px; color: var(--accent); }
+  .ls-btns { display: flex; gap: 12px; width: 100%; }
+  .ls-btn {
+    flex: 1; padding: 14px; border: none; border-radius: var(--radius);
+    font-size: 15px; font-weight: 700; cursor: pointer; transition: transform 0.1s;
+  }
+  .ls-btn:active { transform: scale(0.95); }
+  .ls-btn-again { background: var(--red); color: #fff; }
+  .ls-btn-got { background: var(--green); color: #000; }
+  .ls-done { width: 100%; max-width: 400px; text-align: center; }
+  .ls-done h2 { font-size: 22px; margin-bottom: 16px; }
+  .ls-done-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+  .ls-done-stat { background: var(--card-bg); border: 1px solid #222; border-radius: 12px; padding: 16px; }
+  .ls-done-stat .num { font-size: 28px; font-weight: 800; }
+  .ls-done-stat .lbl { font-size: 12px; color: var(--dim); margin-top: 4px; }
+  .ls-again-btn {
+    background: var(--accent); color: #000; border: none; padding: 14px 32px;
+    border-radius: var(--radius); font-size: 15px; font-weight: 700; cursor: pointer;
+  }
+
+  /* ── Browse Screen ── */
+  .browse { padding: 20px; gap: 12px; }
+  .search {
+    background: #1a1a2e; border: 1px solid #333; border-radius: 12px;
+    padding: 12px 16px; color: var(--text); font-size: 15px; width: 100%; outline: none;
+  }
+  .search:focus { border-color: var(--accent); }
+  .bfilters { display: flex; gap: 6px; flex-wrap: wrap; }
+  .bfilters button {
+    background: #222; border: 1px solid #333; color: var(--dim);
+    padding: 5px 10px; border-radius: 16px; font-size: 11px; cursor: pointer;
+  }
+  .bfilters button.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .wcount { font-size: 12px; color: var(--dim); text-align: center; }
+  .wlist { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; padding-bottom: 20px; }
+  .witem {
+    background: var(--card-bg); border: 1px solid #222; border-radius: 12px;
+    padding: 14px 18px; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;
+  }
+  .witem-left { display: flex; flex-direction: column; gap: 3px; }
+  .witem-de { font-size: 16px; font-weight: 700; }
+  .witem-en { font-size: 14px; color: var(--green); }
+  .witem-ru { font-size: 13px; color: var(--accent); }
+  .witem-right { display: flex; align-items: center; gap: 6px; }
+  .witem-lk { font-size: 11px; color: var(--dim); background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 8px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── Stats Screen ── */
+  .stats { padding: 20px; gap: 16px; overflow-y: auto; }
+  .goal {
+    background: linear-gradient(135deg, #1a237e, #283593); border-radius: var(--radius);
+    padding: 16px; text-align: center; border: 1px solid #3949ab;
+  }
+  .goal-t { font-size: 13px; color: var(--dim); }
+  .goal-v { font-size: 18px; font-weight: 700; margin: 6px 0; }
+  .goal-d { font-size: 13px; color: var(--accent); }
+  .sgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .scard { background: var(--card-bg); border-radius: var(--radius); padding: 18px; border: 1px solid #222; }
+  .scard h3 { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .scard .num { font-size: 36px; font-weight: 800; color: var(--accent); }
+  .scard .sub { font-size: 12px; color: var(--dim); margin-top: 2px; }
+  .scard-wide { grid-column: 1 / -1; }
+
+  .learn-bar { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+  .learn-bar-track { flex: 1; height: 12px; background: #222; border-radius: 6px; overflow: hidden; display: flex; }
+  .learn-bar-g { background: var(--green); height: 100%; transition: width 0.3s; }
+  .learn-bar-r { background: var(--red); height: 100%; transition: width 0.3s; }
+  .learn-legend { display: flex; gap: 16px; margin-top: 6px; font-size: 12px; color: var(--dim); }
+  .learn-legend span { display: flex; align-items: center; gap: 4px; }
+  .ldot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  .lk-progress { display: flex; flex-direction: column; gap: 10px; }
+  .lk-row { display: flex; align-items: center; gap: 10px; }
+  .lk-row .lbl { font-size: 13px; width: 70px; flex-shrink: 0; color: var(--dim); }
+  .lk-row .bar { flex: 1; height: 8px; background: #222; border-radius: 4px; overflow: hidden; }
+  .lk-row .bar-f { height: 100%; border-radius: 4px; transition: width 0.3s; }
+  .lk-row .pct { font-size: 12px; color: var(--dim); width: 36px; text-align: right; }
+
+  /* ── Settings ── */
+  .settings { padding: 20px; gap: 16px; }
+  .sg { background: var(--card-bg); border-radius: var(--radius); padding: 16px; border: 1px solid #222; }
+  .sg h3 { font-size: 14px; margin-bottom: 12px; color: var(--accent); }
+  .sr { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; }
+  .sr label { font-size: 14px; }
+  .sr select, .sr input[type="number"] {
+    background: #222; border: 1px solid #333; color: var(--text);
+    padding: 6px 10px; border-radius: 8px; font-size: 14px;
+  }
+  .btn-d { background: var(--red); color: #fff; border: none; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 8px; }
+  .btn-s { background: #333; color: var(--text); border: none; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Wort<span>Blitz</span></h1>
+  <div class="streak">&#x1F525; <span id="streakN">0</span> days</div>
+</div>
+
+<div class="nav">
+  <button class="active" data-tab="learn">Flashcards</button>
+  <button data-tab="study">Learn</button>
+  <button data-tab="browse">Words</button>
+  <button data-tab="stats">Stats</button>
+  <button data-tab="settings">&#x2699;</button>
+</div>
+
+<!-- Flashcards -->
+<div class="screen learn active" id="screen-learn">
+  <div class="filters" id="lkFilter"></div>
+  <div class="pbar"><div class="pbar-fill" id="pbar"></div></div>
+  <div class="ptext" id="ptext">0 / 0</div>
+  <div class="card-wrap" id="cardWrap" onclick="flip()">
+    <div class="card" id="card">
+      <div class="card-face card-front">
+        <div class="card-lk" id="cLk"></div>
+        <div class="card-word" id="cWord"></div>
+        <div class="card-pl" id="cPl"></div>
+        <div class="tap-hint">tap to reveal</div>
+      </div>
+      <div class="card-face card-back">
+        <div class="card-trans" id="cEn"></div>
+        <div class="card-trans-ru" id="cRu"></div>
+      </div>
+    </div>
+  </div>
+  <div class="actions" id="btns">
+    <button class="btn-n" onclick="ans(false)">&#x274C; Don't know</button>
+    <button class="btn-y" onclick="ans(true)">&#x2705; Know it</button>
+  </div>
+  <div class="empty" id="done" style="display:none">
+    <h2>&#x1F389; Session complete!</h2>
+    <p>You've reviewed all due words.<br>Come back tomorrow for more!</p>
+  </div>
+</div>
+
+<!-- Learn Session -->
+<div class="screen learn-sess" id="screen-study">
+  <div class="ls-setup" id="lsSetup">
+    <div class="ls-section">
+      <h3>What to learn</h3>
+      <div class="ls-modes" id="lsModes"></div>
+    </div>
+    <div class="ls-section">
+      <h3>Lektion</h3>
+      <div class="ls-lks" id="lsLks"></div>
+    </div>
+    <button class="ls-go" id="lsGo" onclick="startLearnSession()">Start Session</button>
+  </div>
+  <div class="ls-active" id="lsActive" style="display:none">
+    <div class="ls-top">
+      <div class="ls-prog" style="flex:1">
+        <div class="ls-prog-bar"><div class="ls-prog-fill" id="lsProgFill"></div></div>
+        <div class="ls-prog-text" id="lsProgText">0/0</div>
+      </div>
+      <button class="ls-end-btn" onclick="endLearn()">End</button>
+    </div>
+    <div class="ls-card" id="lsCard" onclick="revealLearn()">
+      <div class="ls-card-lk" id="lsLk"></div>
+      <div class="ls-card-word" id="lsWord"></div>
+      <div class="ls-card-hint" id="lsHint">tap to reveal</div>
+      <div class="ls-card-reveal" id="lsReveal" style="display:none">
+        <div class="ls-card-en" id="lsEn"></div>
+        <div class="ls-card-ru" id="lsRu"></div>
+      </div>
+    </div>
+    <div class="ls-btns" id="lsBtns" style="display:none">
+      <button class="ls-btn ls-btn-again" onclick="learnAnswer(false)">Again</button>
+      <button class="ls-btn ls-btn-got" onclick="learnAnswer(true)">Got It</button>
+    </div>
+  </div>
+  <div class="ls-done" id="lsDone" style="display:none">
+    <h2>Session Complete!</h2>
+    <div class="ls-done-stats" id="lsDoneStats"></div>
+    <button class="ls-again-btn" onclick="resetLearn()">New Session</button>
+  </div>
+</div>
+
+<!-- Browse -->
+<div class="screen browse" id="screen-browse">
+  <input type="text" class="search" id="searchBox" placeholder="Search words...">
+  <div class="bfilters" id="bFilter"></div>
+  <div class="wcount" id="wcount"></div>
+  <div class="wlist" id="wlist"></div>
+</div>
+
+<!-- Stats -->
+<div class="screen stats" id="screen-stats">
+  <div class="goal">
+    <div class="goal-t">GOAL</div>
+    <div class="goal-v">B2 German - January 2027</div>
+    <div class="goal-d" id="goalDays"></div>
+  </div>
+  <div class="sgrid">
+    <div class="scard"><h3>Total Words</h3><div class="num" id="sTotal">0</div></div>
+    <div class="scard"><h3>Today</h3><div class="num" id="sToday">0</div><div class="sub">reviewed</div></div>
+    <div class="scard"><h3>Streak</h3><div class="num" id="sStreak">0</div><div class="sub">days</div></div>
+    <div class="scard"><h3>Mastered</h3><div class="num" id="sMaster">0</div><div class="sub">box 3+</div></div>
+  </div>
+  <div class="scard scard-wide">
+    <h3>Learning Progress</h3>
+    <div class="learn-bar">
+      <div class="learn-bar-track">
+        <div class="learn-bar-g" id="barLearned"></div>
+        <div class="learn-bar-r" id="barNotLearned"></div>
+      </div>
+    </div>
+    <div class="learn-legend">
+      <span><span class="ldot" style="background:var(--green)"></span> Learned: <b id="nLearned">0</b></span>
+      <span><span class="ldot" style="background:var(--red)"></span> Not learned: <b id="nNotLearned">0</b></span>
+    </div>
+  </div>
+  <div class="scard scard-wide">
+    <h3>By Lektion</h3>
+    <div class="lk-progress" id="lkProgress"></div>
+  </div>
+</div>
+
+<!-- Settings -->
+<div class="screen settings" id="screen-settings">
+  <div class="sg">
+    <h3>Daily Goal</h3>
+    <div class="sr"><label>Words per day</label><input type="number" id="dGoal" value="7" min="3" max="50" onchange="saveGoal()"></div>
+  </div>
+  <div class="sg">
+    <h3>Flashcard Direction</h3>
+    <div class="sr">
+      <label>Card order</label>
+      <select id="dirSet" onchange="saveDir()">
+        <option value="mixed">Mixed (random)</option>
+        <option value="de-en">German → English</option>
+        <option value="en-de">English → German</option>
+      </select>
+    </div>
+  </div>
+  <div class="sg">
+    <h3>Data</h3>
+    <button class="btn-s" onclick="exportData()">Export backup (JSON)</button>
+    <button class="btn-d" onclick="resetAll()">Reset all progress</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  VOCABULARY — Lektionen 5-15 (DE / EN / RU)
+// ══════════════════════════════════════════
+const V=[
+// L5
+{de:"die Uhr, -en",en:"clock / watch",ru:"\u0447\u0430\u0441\u044b",lk:5},
+{de:"das Auto, -s",en:"car",ru:"\u043c\u0430\u0448\u0438\u043d\u0430",lk:5},
+{de:"das Handy, -s",en:"mobile phone",ru:"\u0442\u0435\u043b\u0435\u0444\u043e\u043d",lk:5},
+{de:"zeichnen",en:"to draw",ru:"\u0440\u0438\u0441\u043e\u0432\u0430\u0442\u044c",lk:5},
+{de:"der Bleistift, -e",en:"pencil",ru:"\u043a\u0430\u0440\u0430\u043d\u0434\u0430\u0448",lk:5},
+{de:"die Brille, -n",en:"glasses",ru:"\u043e\u0447\u043a\u0438",lk:5},
+{de:"das Buch, \u00a8-er",en:"book",ru:"\u043a\u043d\u0438\u0433\u0430",lk:5},
+{de:"die Flasche, -n",en:"bottle",ru:"\u0431\u0443\u0442\u044b\u043b\u043a\u0430",lk:5},
+{de:"die Kamera, -s",en:"camera",ru:"\u043a\u0430\u043c\u0435\u0440\u0430",lk:5},
+{de:"die Kette, -n",en:"chain / necklace",ru:"\u0446\u0435\u043f\u043e\u0447\u043a\u0430",lk:5},
+{de:"der Kugelschreiber, --",en:"ballpoint pen",ru:"\u0440\u0443\u0447\u043a\u0430",lk:5},
+{de:"der Schl\u00fcssel, --",en:"key",ru:"\u043a\u043b\u044e\u0447",lk:5},
+{de:"die Tasche, -n",en:"bag",ru:"\u0441\u0443\u043c\u043a\u0430",lk:5},
+{de:"das Material, -ien",en:"material",ru:"\u043c\u0430\u0442\u0435\u0440\u0438\u0430\u043b",lk:5},
+{de:"das Holz",en:"wood",ru:"\u0434\u0435\u0440\u0435\u0432\u043e",lk:5},
+{de:"das Papier, -e",en:"paper",ru:"\u0431\u0443\u043c\u0430\u0433\u0430",lk:5},
+{de:"das Metall, -e",en:"metal",ru:"\u043c\u0435\u0442\u0430\u043b\u043b",lk:5},
+{de:"das Plastik",en:"plastic",ru:"\u043f\u043b\u0430\u0441\u0442\u0438\u043a",lk:5},
+{de:"das Glas, \u00a8-er",en:"glass",ru:"\u0441\u0442\u0435\u043a\u043b\u043e",lk:5},
+{de:"die Farbe, -n",en:"color",ru:"\u0446\u0432\u0435\u0442",lk:5},
+{de:"wei\u00df",en:"white",ru:"\u0431\u0435\u043b\u044b\u0439",lk:5},
+{de:"gelb",en:"yellow",ru:"\u0436\u0451\u043b\u0442\u044b\u0439",lk:5},
+{de:"orange",en:"orange",ru:"\u043e\u0440\u0430\u043d\u0436\u0435\u0432\u044b\u0439",lk:5},
+{de:"rot",en:"red",ru:"\u043a\u0440\u0430\u0441\u043d\u044b\u0439",lk:5},
+{de:"gr\u00fcn",en:"green",ru:"\u0437\u0435\u043b\u0451\u043d\u044b\u0439",lk:5},
+{de:"blau",en:"blue",ru:"\u0441\u0438\u043d\u0438\u0439",lk:5},
+{de:"braun",en:"brown",ru:"\u043a\u043e\u0440\u0438\u0447\u043d\u0435\u0432\u044b\u0439",lk:5},
+{de:"schwarz",en:"black",ru:"\u0447\u0451\u0440\u043d\u044b\u0439",lk:5},
+{de:"sehen",en:"to see",ru:"\u0432\u0438\u0434\u0435\u0442\u044c",lk:5},
+{de:"etwas",en:"something",ru:"\u0447\u0442\u043e-\u0442\u043e",lk:5},
+{de:"viele",en:"many",ru:"\u043c\u043d\u043e\u0433\u043e",lk:5},
+{de:"das Ding, -e",en:"thing",ru:"\u0432\u0435\u0449\u044c",lk:5},
+{de:"sagen",en:"to say",ru:"\u0433\u043e\u0432\u043e\u0440\u0438\u0442\u044c",lk:5},
+{de:"fragen",en:"to ask",ru:"\u0441\u043f\u0440\u0430\u0448\u0438\u0432\u0430\u0442\u044c",lk:5},
+{de:"antworten",en:"to answer",ru:"\u043e\u0442\u0432\u0435\u0447\u0430\u0442\u044c",lk:5},
+{de:"das Feuerzeug, -e",en:"lighter",ru:"\u0437\u0430\u0436\u0438\u0433\u0430\u043b\u043a\u0430",lk:5},
+{de:"der Geldbeutel, --",en:"wallet",ru:"\u043a\u043e\u0448\u0435\u043b\u0451\u043a",lk:5},
+{de:"das Taschentuch, \u00a8-er",en:"tissue / handkerchief",ru:"\u043f\u043b\u0430\u0442\u043e\u043a",lk:5},
+{de:"der Regen",en:"rain",ru:"\u0434\u043e\u0436\u0434\u044c",lk:5},
+{de:"das Wort, -e",en:"word",ru:"\u0441\u043b\u043e\u0432\u043e",lk:5},
+{de:"bitten",en:"to request",ru:"\u043f\u0440\u043e\u0441\u0438\u0442\u044c",lk:5},
+{de:"schreiben",en:"to write",ru:"\u043f\u0438\u0441\u0430\u0442\u044c",lk:5},
+{de:"das Problem, -e",en:"problem",ru:"\u043f\u0440\u043e\u0431\u043b\u0435\u043c\u0430",lk:5},
+{de:"die Jacke, -n",en:"jacket",ru:"\u043a\u0443\u0440\u0442\u043a\u0430",lk:5},
+{de:"die Seife, -n",en:"soap",ru:"\u043c\u044b\u043b\u043e",lk:5},
+{de:"das Handtuch, \u00a8-er",en:"towel",ru:"\u043f\u043e\u043b\u043e\u0442\u0435\u043d\u0446\u0435",lk:5},
+{de:"der F\u00f6hn, -e",en:"hair dryer",ru:"\u0444\u0435\u043d",lk:5},
+{de:"die Sonne, -n",en:"sun",ru:"\u0441\u043e\u043b\u043d\u0446\u0435",lk:5},
+{de:"die Sonnenbrille, -n",en:"sunglasses",ru:"\u0441\u043e\u043b\u043d\u0435\u0447\u043d\u044b\u0435 \u043e\u0447\u043a\u0438",lk:5},
+{de:"die Nummer, -n",en:"number",ru:"\u043d\u043e\u043c\u0435\u0440",lk:5},
+{de:"das Produkt, -e",en:"product",ru:"\u043f\u0440\u043e\u0434\u0443\u043a\u0442",lk:5},
+{de:"die E-Mail, -s",en:"email",ru:"\u044d\u043b. \u043f\u043e\u0447\u0442\u0430",lk:5},
+{de:"das Telefon, -e",en:"telephone",ru:"\u0442\u0435\u043b\u0435\u0444\u043e\u043d",lk:5},
+{de:"das Haus, \u00a8-er",en:"house",ru:"\u0434\u043e\u043c",lk:5},
+{de:"die Adresse, -n",en:"address",ru:"\u0430\u0434\u0440\u0435\u0441",lk:5},
+{de:"der Name, -n",en:"name",ru:"\u0438\u043c\u044f",lk:5},
+{de:"die Stra\u00dfe, -n",en:"street",ru:"\u0443\u043b\u0438\u0446\u0430",lk:5},
+{de:"nennen",en:"to name / to call",ru:"\u043d\u0430\u0437\u044b\u0432\u0430\u0442\u044c",lk:5},
+// L6
+{de:"die Arbeit, -en",en:"work",ru:"\u0440\u0430\u0431\u043e\u0442\u0430",lk:6},
+{de:"das Passwort, \u00a8-er",en:"password",ru:"\u043f\u0430\u0440\u043e\u043b\u044c",lk:6},
+{de:"der Traum, \u00a8-e",en:"dream",ru:"\u043c\u0435\u0447\u0442\u0430 / \u0441\u043e\u043d",lk:6},
+{de:"die Person, -en",en:"person",ru:"\u0447\u0435\u043b\u043e\u0432\u0435\u043a",lk:6},
+{de:"der Hunger",en:"hunger",ru:"\u0433\u043e\u043b\u043e\u0434",lk:6},
+{de:"brauchen",en:"to need",ru:"\u043d\u0443\u0436\u0434\u0430\u0442\u044c\u0441\u044f",lk:6},
+{de:"der Kaffee, -s",en:"coffee",ru:"\u043a\u043e\u0444\u0435",lk:6},
+{de:"die Nachricht, -en",en:"message",ru:"\u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435",lk:6},
+{de:"das B\u00fcro, -s",en:"office",ru:"\u043e\u0444\u0438\u0441",lk:6},
+{de:"neu",en:"new",ru:"\u043d\u043e\u0432\u044b\u0439",lk:6},
+{de:"morgen",en:"tomorrow",ru:"\u0437\u0430\u0432\u0442\u0440\u0430",lk:6},
+{de:"leider",en:"unfortunately",ru:"\u043a \u0441\u043e\u0436\u0430\u043b\u0435\u043d\u0438\u044e",lk:6},
+{de:"die Zeit, -en",en:"time",ru:"\u0432\u0440\u0435\u043c\u044f",lk:6},
+{de:"der Termin, -e",en:"appointment",ru:"\u0432\u0441\u0442\u0440\u0435\u0447\u0430",lk:6},
+// L7
+{de:"k\u00f6nnen",en:"can / to be able to",ru:"\u043c\u043e\u0447\u044c",lk:7},
+{de:"tanzen",en:"to dance",ru:"\u0442\u0430\u043d\u0446\u0435\u0432\u0430\u0442\u044c",lk:7},
+{de:"toll",en:"great / awesome",ru:"\u043a\u043b\u0430\u0441\u0441\u043d\u044b\u0439",lk:7},
+{de:"komisch",en:"weird / funny",ru:"\u0441\u0442\u0440\u0430\u043d\u043d\u044b\u0439",lk:7},
+{de:"interessant",en:"interesting",ru:"\u0438\u043d\u0442\u0435\u0440\u0435\u0441\u043d\u044b\u0439",lk:7},
+{de:"lustig",en:"funny",ru:"\u0441\u043c\u0435\u0448\u043d\u043e\u0439",lk:7},
+{de:"h\u00f6ren",en:"to hear / listen",ru:"\u0441\u043b\u0443\u0448\u0430\u0442\u044c",lk:7},
+{de:"immer",en:"always",ru:"\u0432\u0441\u0435\u0433\u0434\u0430",lk:7},
+{de:"kochen",en:"to cook",ru:"\u0433\u043e\u0442\u043e\u0432\u0438\u0442\u044c",lk:7},
+{de:"singen",en:"to sing",ru:"\u043f\u0435\u0442\u044c",lk:7},
+{de:"schwimmen",en:"to swim",ru:"\u043f\u043b\u0430\u0432\u0430\u0442\u044c",lk:7},
+{de:"malen",en:"to paint",ru:"\u0440\u0438\u0441\u043e\u0432\u0430\u0442\u044c",lk:7},
+{de:"backen",en:"to bake",ru:"\u043f\u0435\u0447\u044c",lk:7},
+{de:"Fu\u00dfball spielen",en:"to play football",ru:"\u0438\u0433\u0440\u0430\u0442\u044c \u0432 \u0444\u0443\u0442\u0431\u043e\u043b",lk:7},
+{de:"Rad fahren",en:"to ride a bike",ru:"\u0435\u0437\u0434\u0438\u0442\u044c \u043d\u0430 \u0432\u0435\u043b\u043e\u0441\u0438\u043f\u0435\u0434\u0435",lk:7},
+{de:"reiten",en:"to ride (horse)",ru:"\u0435\u0437\u0434\u0438\u0442\u044c \u0432\u0435\u0440\u0445\u043e\u043c",lk:7},
+{de:"aber",en:"but",ru:"\u043d\u043e",lk:7},
+{de:"lieben",en:"to love",ru:"\u043b\u044e\u0431\u0438\u0442\u044c",lk:7},
+{de:"gehen",en:"to go / to walk",ru:"\u0438\u0434\u0442\u0438",lk:7},
+// L8
+{de:"das Schwimmbad, \u00a8-er",en:"swimming pool",ru:"\u0431\u0430\u0441\u0441\u0435\u0439\u043d",lk:8},
+{de:"das Kino, -s",en:"cinema",ru:"\u043a\u0438\u043d\u043e",lk:8},
+{de:"die Woche, -n",en:"week",ru:"\u043d\u0435\u0434\u0435\u043b\u044f",lk:8},
+{de:"der Montag",en:"Monday",ru:"\u043f\u043e\u043d\u0435\u0434\u0435\u043b\u044c\u043d\u0438\u043a",lk:8},
+{de:"der Dienstag",en:"Tuesday",ru:"\u0432\u0442\u043e\u0440\u043d\u0438\u043a",lk:8},
+{de:"der Mittwoch",en:"Wednesday",ru:"\u0441\u0440\u0435\u0434\u0430",lk:8},
+{de:"der Donnerstag",en:"Thursday",ru:"\u0447\u0435\u0442\u0432\u0435\u0440\u0433",lk:8},
+{de:"der Freitag",en:"Friday",ru:"\u043f\u044f\u0442\u043d\u0438\u0446\u0430",lk:8},
+{de:"der Samstag",en:"Saturday",ru:"\u0441\u0443\u0431\u0431\u043e\u0442\u0430",lk:8},
+{de:"der Sonntag",en:"Sunday",ru:"\u0432\u043e\u0441\u043a\u0440\u0435\u0441\u0435\u043d\u044c\u0435",lk:8},
+{de:"das Wochenende, -n",en:"weekend",ru:"\u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435",lk:8},
+{de:"frei",en:"free",ru:"\u0441\u0432\u043e\u0431\u043e\u0434\u043d\u044b\u0439",lk:8},
+{de:"die Nacht, \u00a8-e",en:"night",ru:"\u043d\u043e\u0447\u044c",lk:8},
+{de:"wissen",en:"to know",ru:"\u0437\u043d\u0430\u0442\u044c",lk:8},
+{de:"sp\u00e4t",en:"late",ru:"\u043f\u043e\u0437\u0434\u043d\u043e",lk:8},
+{de:"oder",en:"or",ru:"\u0438\u043b\u0438",lk:8},
+{de:"der Morgen",en:"morning",ru:"\u0443\u0442\u0440\u043e",lk:8},
+{de:"der Abend",en:"evening",ru:"\u0432\u0435\u0447\u0435\u0440",lk:8},
+{de:"das Museum, Museen",en:"museum",ru:"\u043c\u0443\u0437\u0435\u0439",lk:8},
+{de:"das Theater",en:"theater",ru:"\u0442\u0435\u0430\u0442\u0440",lk:8},
+{de:"das Caf\u00e9, -s",en:"cafe",ru:"\u043a\u0430\u0444\u0435",lk:8},
+{de:"das Konzert, -e",en:"concert",ru:"\u043a\u043e\u043d\u0446\u0435\u0440\u0442",lk:8},
+{de:"das Restaurant, -s",en:"restaurant",ru:"\u0440\u0435\u0441\u0442\u043e\u0440\u0430\u043d",lk:8},
+{de:"die Frage, -n",en:"question",ru:"\u0432\u043e\u043f\u0440\u043e\u0441",lk:8},
+{de:"die Antwort, -en",en:"answer",ru:"\u043e\u0442\u0432\u0435\u0442",lk:8},
+// L9
+{de:"m\u00f6gen",en:"to like",ru:"\u043b\u044e\u0431\u0438\u0442\u044c / \u043d\u0440\u0430\u0432\u0438\u0442\u044c\u0441\u044f",lk:9},
+{de:"die Schokolade",en:"chocolate",ru:"\u0448\u043e\u043a\u043e\u043b\u0430\u0434",lk:9},
+{de:"der K\u00e4se",en:"cheese",ru:"\u0441\u044b\u0440",lk:9},
+{de:"der Salat, -e",en:"salad",ru:"\u0441\u0430\u043b\u0430\u0442",lk:9},
+{de:"der Kuchen, -",en:"cake",ru:"\u0442\u043e\u0440\u0442 / \u043f\u0438\u0440\u043e\u0433",lk:9},
+{de:"die Suppe, -n",en:"soup",ru:"\u0441\u0443\u043f",lk:9},
+{de:"der Apfel, \u00a8-",en:"apple",ru:"\u044f\u0431\u043b\u043e\u043a\u043e",lk:9},
+{de:"der Tee, -s",en:"tea",ru:"\u0447\u0430\u0439",lk:9},
+{de:"der Fisch, -e",en:"fish",ru:"\u0440\u044b\u0431\u0430",lk:9},
+{de:"die Tomate, -n",en:"tomato",ru:"\u043f\u043e\u043c\u0438\u0434\u043e\u0440",lk:9},
+{de:"das Brot, -e",en:"bread",ru:"\u0445\u043b\u0435\u0431",lk:9},
+{de:"das Fleisch",en:"meat",ru:"\u043c\u044f\u0441\u043e",lk:9},
+{de:"die Milch",en:"milk",ru:"\u043c\u043e\u043b\u043e\u043a\u043e",lk:9},
+{de:"das Ei, -er",en:"egg",ru:"\u044f\u0439\u0446\u043e",lk:9},
+{de:"die Butter",en:"butter",ru:"\u043c\u0430\u0441\u043b\u043e",lk:9},
+{de:"trinken",en:"to drink",ru:"\u043f\u0438\u0442\u044c",lk:9},
+{de:"essen",en:"to eat",ru:"\u0435\u0441\u0442\u044c",lk:9},
+{de:"lecker",en:"delicious",ru:"\u0432\u043a\u0443\u0441\u043d\u044b\u0439",lk:9},
+{de:"das Wasser",en:"water",ru:"\u0432\u043e\u0434\u0430",lk:9},
+{de:"die Kartoffel, -n",en:"potato",ru:"\u043a\u0430\u0440\u0442\u043e\u0448\u043a\u0430",lk:9},
+{de:"das Huhn, \u00a8-er",en:"chicken",ru:"\u043a\u0443\u0440\u0438\u0446\u0430",lk:9},
+{de:"der Reis",en:"rice",ru:"\u0440\u0438\u0441",lk:9},
+{de:"das Eis",en:"ice cream",ru:"\u043c\u043e\u0440\u043e\u0436\u0435\u043d\u043e\u0435",lk:9},
+{de:"das Obst",en:"fruit",ru:"\u0444\u0440\u0443\u043a\u0442\u044b",lk:9},
+{de:"die Zitrone, -n",en:"lemon",ru:"\u043b\u0438\u043c\u043e\u043d",lk:9},
+// L10
+{de:"der Flughafen, \u00a8-e",en:"airport",ru:"\u0430\u044d\u0440\u043e\u043f\u043e\u0440\u0442",lk:10},
+{de:"der Kollege, -n",en:"colleague (m)",ru:"\u043a\u043e\u043b\u043b\u0435\u0433\u0430",lk:10},
+{de:"der Flug, \u00a8-e",en:"flight",ru:"\u0440\u0435\u0439\u0441 / \u043f\u043e\u043b\u0451\u0442",lk:10},
+{de:"die Reise, -n",en:"journey / trip",ru:"\u043f\u0443\u0442\u0435\u0448\u0435\u0441\u0442\u0432\u0438\u0435",lk:10},
+{de:"kurz",en:"short",ru:"\u043a\u043e\u0440\u043e\u0442\u043a\u0438\u0439",lk:10},
+{de:"ankommen",en:"to arrive",ru:"\u043f\u0440\u0438\u0431\u044b\u0432\u0430\u0442\u044c",lk:10},
+{de:"anrufen",en:"to call (phone)",ru:"\u0437\u0432\u043e\u043d\u0438\u0442\u044c",lk:10},
+{de:"fr\u00fch",en:"early",ru:"\u0440\u0430\u043d\u043e",lk:10},
+{de:"verstehen",en:"to understand",ru:"\u043f\u043e\u043d\u0438\u043c\u0430\u0442\u044c",lk:10},
+{de:"nat\u00fcrlich",en:"of course",ru:"\u043a\u043e\u043d\u0435\u0447\u043d\u043e",lk:10},
+{de:"einsteigen",en:"to board / get on",ru:"\u0441\u0430\u0434\u0438\u0442\u044c\u0441\u044f",lk:10},
+{de:"umsteigen",en:"to transfer / change",ru:"\u043f\u0435\u0440\u0435\u0441\u0430\u0436\u0438\u0432\u0430\u0442\u044c\u0441\u044f",lk:10},
+{de:"aussteigen",en:"to get off",ru:"\u0432\u044b\u0445\u043e\u0434\u0438\u0442\u044c",lk:10},
+{de:"der Bahnhof, \u00a8-e",en:"train station",ru:"\u0432\u043e\u043a\u0437\u0430\u043b",lk:10},
+{de:"die U-Bahn, -en",en:"subway / metro",ru:"\u043c\u0435\u0442\u0440\u043e",lk:10},
+{de:"der Bus, -se",en:"bus",ru:"\u0430\u0432\u0442\u043e\u0431\u0443\u0441",lk:10},
+{de:"der Zug, \u00a8-e",en:"train",ru:"\u043f\u043e\u0435\u0437\u0434",lk:10},
+{de:"das Flugzeug, -e",en:"airplane",ru:"\u0441\u0430\u043c\u043e\u043b\u0451\u0442",lk:10},
+{de:"der Koffer, -",en:"suitcase",ru:"\u0447\u0435\u043c\u043e\u0434\u0430\u043d",lk:10},
+{de:"der Rucksack, \u00a8-e",en:"backpack",ru:"\u0440\u044e\u043a\u0437\u0430\u043a",lk:10},
+{de:"einkaufen",en:"to shop",ru:"\u0434\u0435\u043b\u0430\u0442\u044c \u043f\u043e\u043a\u0443\u043f\u043a\u0438",lk:10},
+{de:"beginnen",en:"to begin",ru:"\u043d\u0430\u0447\u0438\u043d\u0430\u0442\u044c",lk:10},
+// L11
+{de:"gestern",en:"yesterday",ru:"\u0432\u0447\u0435\u0440\u0430",lk:11},
+{de:"der Wald, \u00a8-er",en:"forest",ru:"\u043b\u0435\u0441",lk:11},
+{de:"die Zeitung, -en",en:"newspaper",ru:"\u0433\u0430\u0437\u0435\u0442\u0430",lk:11},
+{de:"aufr\u00e4umen",en:"to tidy up",ru:"\u0443\u0431\u0438\u0440\u0430\u0442\u044c",lk:11},
+{de:"der Film, -e",en:"movie / film",ru:"\u0444\u0438\u043b\u044c\u043c",lk:11},
+{de:"schlafen",en:"to sleep",ru:"\u0441\u043f\u0430\u0442\u044c",lk:11},
+{de:"die Hausaufgabe, -n",en:"homework",ru:"\u0434\u043e\u043c\u0430\u0448\u043d\u0435\u0435 \u0437\u0430\u0434\u0430\u043d\u0438\u0435",lk:11},
+{de:"kaufen",en:"to buy",ru:"\u043f\u043e\u043a\u0443\u043f\u0430\u0442\u044c",lk:11},
+{de:"der Urlaub, -e",en:"vacation",ru:"\u043e\u0442\u043f\u0443\u0441\u043a",lk:11},
+{de:"die Blume, -n",en:"flower",ru:"\u0446\u0432\u0435\u0442\u043e\u043a",lk:11},
+{de:"der Laden, \u00a8-",en:"shop / store",ru:"\u043c\u0430\u0433\u0430\u0437\u0438\u043d",lk:11},
+{de:"ge\u00f6ffnet",en:"open",ru:"\u043e\u0442\u043a\u0440\u044b\u0442\u043e",lk:11},
+{de:"geschlossen",en:"closed",ru:"\u0437\u0430\u043a\u0440\u044b\u0442\u043e",lk:11},
+{de:"das Geschenk, -e",en:"gift / present",ru:"\u043f\u043e\u0434\u0430\u0440\u043e\u043a",lk:11},
+{de:"einladen",en:"to invite",ru:"\u043f\u0440\u0438\u0433\u043b\u0430\u0448\u0430\u0442\u044c",lk:11},
+// L12
+{de:"laufen",en:"to run",ru:"\u0431\u0435\u0433\u0430\u0442\u044c",lk:12},
+{de:"das Wetter",en:"weather",ru:"\u043f\u043e\u0433\u043e\u0434\u0430",lk:12},
+{de:"der Herbst",en:"autumn / fall",ru:"\u043e\u0441\u0435\u043d\u044c",lk:12},
+{de:"der Winter",en:"winter",ru:"\u0437\u0438\u043c\u0430",lk:12},
+{de:"der Sommer",en:"summer",ru:"\u043b\u0435\u0442\u043e",lk:12},
+{de:"besuchen",en:"to visit",ru:"\u043f\u043e\u0441\u0435\u0449\u0430\u0442\u044c",lk:12},
+{de:"bleiben",en:"to stay",ru:"\u043e\u0441\u0442\u0430\u0432\u0430\u0442\u044c\u0441\u044f",lk:12},
+{de:"feiern",en:"to celebrate",ru:"\u043f\u0440\u0430\u0437\u0434\u043d\u043e\u0432\u0430\u0442\u044c",lk:12},
+{de:"der Monat, -e",en:"month",ru:"\u043c\u0435\u0441\u044f\u0446",lk:12},
+{de:"der Geburtstag, -e",en:"birthday",ru:"\u0434\u0435\u043d\u044c \u0440\u043e\u0436\u0434\u0435\u043d\u0438\u044f",lk:12},
+{de:"die Jahreszeit, -en",en:"season",ru:"\u0432\u0440\u0435\u043c\u044f \u0433\u043e\u0434\u0430",lk:12},
+{de:"cool",en:"cool",ru:"\u043a\u0440\u0443\u0442\u043e\u0439",lk:12},
+// L13
+{de:"die Wohnung, -en",en:"apartment",ru:"\u043a\u0432\u0430\u0440\u0442\u0438\u0440\u0430",lk:13},
+{de:"billig",en:"cheap",ru:"\u0434\u0435\u0448\u0451\u0432\u044b\u0439",lk:13},
+{de:"teuer",en:"expensive",ru:"\u0434\u043e\u0440\u043e\u0433\u043e\u0439",lk:13},
+{de:"die Stadt, -e",en:"city",ru:"\u0433\u043e\u0440\u043e\u0434",lk:13},
+{de:"die Kirche, -n",en:"church",ru:"\u0446\u0435\u0440\u043a\u043e\u0432\u044c",lk:13},
+{de:"das Schloss, -er",en:"castle / palace",ru:"\u0437\u0430\u043c\u043e\u043a / \u0434\u0432\u043e\u0440\u0435\u0446",lk:13},
+{de:"der Markt, -e",en:"market",ru:"\u0440\u044b\u043d\u043e\u043a",lk:13},
+{de:"der See, -n",en:"lake",ru:"\u043e\u0437\u0435\u0440\u043e",lk:13},
+{de:"der Park, -s",en:"park",ru:"\u043f\u0430\u0440\u043a",lk:13},
+{de:"helfen",en:"to help",ru:"\u043f\u043e\u043c\u043e\u0433\u0430\u0442\u044c",lk:13},
+{de:"denken",en:"to think",ru:"\u0434\u0443\u043c\u0430\u0442\u044c",lk:13},
+{de:"gefallen",en:"to like / please",ru:"\u043d\u0440\u0430\u0432\u0438\u0442\u044c\u0441\u044f",lk:13},
+{de:"reisen",en:"to travel",ru:"\u043f\u0443\u0442\u0435\u0448\u0435\u0441\u0442\u0432\u043e\u0432\u0430\u0442\u044c",lk:13},
+{de:"die Bibliothek, -en",en:"library",ru:"\u0431\u0438\u0431\u043b\u0438\u043e\u0442\u0435\u043a\u0430",lk:13},
+{de:"zeigen",en:"to show",ru:"\u043f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0442\u044c",lk:13},
+{de:"die Kunst, \u00a8-e",en:"art",ru:"\u0438\u0441\u043a\u0443\u0441\u0441\u0442\u0432\u043e",lk:13},
+// L14
+{de:"weit",en:"far",ru:"\u0434\u0430\u043b\u0435\u043a\u043e",lk:14},
+{de:"der Weg, -e",en:"way / path",ru:"\u043f\u0443\u0442\u044c / \u0434\u043e\u0440\u043e\u0433\u0430",lk:14},
+{de:"(nach) rechts",en:"(to the) right",ru:"\u043d\u0430\u043f\u0440\u0430\u0432\u043e",lk:14},
+{de:"(nach) links",en:"(to the) left",ru:"\u043d\u0430\u043b\u0435\u0432\u043e",lk:14},
+{de:"geradeaus",en:"straight ahead",ru:"\u043f\u0440\u044f\u043c\u043e",lk:14},
+{de:"die Ampel, -n",en:"traffic light",ru:"\u0441\u0432\u0435\u0442\u043e\u0444\u043e\u0440",lk:14},
+{de:"die Br\u00fccke, -n",en:"bridge",ru:"\u043c\u043e\u0441\u0442",lk:14},
+{de:"der Baum, -e",en:"tree",ru:"\u0434\u0435\u0440\u0435\u0432\u043e",lk:14},
+{de:"das Krankenhaus, -er",en:"hospital",ru:"\u0431\u043e\u043b\u044c\u043d\u0438\u0446\u0430",lk:14},
+{de:"die Polizei",en:"police",ru:"\u043f\u043e\u043b\u0438\u0446\u0438\u044f",lk:14},
+{de:"die Apotheke, -n",en:"pharmacy",ru:"\u0430\u043f\u0442\u0435\u043a\u0430",lk:14},
+{de:"die Schule, -n",en:"school",ru:"\u0448\u043a\u043e\u043b\u0430",lk:14},
+{de:"die Bank, -en",en:"bank",ru:"\u0431\u0430\u043d\u043a",lk:14},
+{de:"die Post",en:"post office",ru:"\u043f\u043e\u0447\u0442\u0430",lk:14},
+// L15
+{de:"die K\u00fcche, -n",en:"kitchen",ru:"\u043a\u0443\u0445\u043d\u044f",lk:15},
+{de:"das Zimmer, -",en:"room",ru:"\u043a\u043e\u043c\u043d\u0430\u0442\u0430",lk:15},
+{de:"das Fenster, -",en:"window",ru:"\u043e\u043a\u043d\u043e",lk:15},
+{de:"die T\u00fcr, -en",en:"door",ru:"\u0434\u0432\u0435\u0440\u044c",lk:15},
+{de:"der Garten, \u00a8-",en:"garden",ru:"\u0441\u0430\u0434",lk:15},
+{de:"der Balkon, -e",en:"balcony",ru:"\u0431\u0430\u043b\u043a\u043e\u043d",lk:15},
+{de:"das Schlafzimmer, -",en:"bedroom",ru:"\u0441\u043f\u0430\u043b\u044c\u043d\u044f",lk:15},
+{de:"das Bad, -er",en:"bathroom",ru:"\u0432\u0430\u043d\u043d\u0430\u044f",lk:15},
+{de:"der Flur, -e",en:"hallway",ru:"\u043a\u043e\u0440\u0438\u0434\u043e\u0440",lk:15},
+{de:"die Treppe, -n",en:"stairs",ru:"\u043b\u0435\u0441\u0442\u043d\u0438\u0446\u0430",lk:15},
+{de:"der Keller, -",en:"basement",ru:"\u043f\u043e\u0434\u0432\u0430\u043b",lk:15},
+{de:"laut",en:"loud",ru:"\u0433\u0440\u043e\u043c\u043a\u0438\u0439",lk:15},
+{de:"die Miete, -n",en:"rent",ru:"\u0430\u0440\u0435\u043d\u0434\u0430",lk:15},
+{de:"umziehen",en:"to move (house)",ru:"\u043f\u0435\u0440\u0435\u0435\u0437\u0436\u0430\u0442\u044c",lk:15},
+{de:"bezahlen",en:"to pay",ru:"\u043f\u043b\u0430\u0442\u0438\u0442\u044c",lk:15},
+{de:"sofort",en:"immediately",ru:"\u0441\u0440\u0430\u0437\u0443",lk:15},
+{de:"schlecht",en:"bad",ru:"\u043f\u043b\u043e\u0445\u043e\u0439",lk:15},
+{de:"bald",en:"soon",ru:"\u0441\u043a\u043e\u0440\u043e",lk:15},
+];
+
+// ══════════ STATE ══════════
+const SK='wortblitz_v2';
+let S=load();
+function def(){return{prog:{},streak:0,lastDay:null,todayN:0,today:null,goal:7,dir:'mixed',selLk:[]};}
+function load(){try{const s=JSON.parse(localStorage.getItem(SK));if(s)return{...def(),...s};}catch(e){}return def();}
+function save(){localStorage.setItem(SK,JSON.stringify(S));}
+
+// ══════════ SPACED REP ══════════
+const BOX=[0,1,3,7,14];
+function gp(i){if(!S.prog[i])S.prog[i]={box:0,next:0,seen:0};return S.prog[i];}
+function due(lks){
+  const now=Date.now();
+  const f=V.map((_,i)=>i).filter(i=>{
+    if(lks.length>0&&!lks.includes(V[i].lk))return false;
+    return gp(i).next<=now;
+  });
+  f.sort((a,b)=>{
+    const pa=gp(a),pb=gp(b);
+    if(!pa.seen&&pb.seen)return-1;if(pa.seen&&!pb.seen)return 1;
+    if(pa.box!==pb.box)return pa.box-pb.box;
+    return Math.random()-0.5;
+  });
+  return f;
+}
+
+// ══════════ STREAK ══════════
+function checkStreak(){
+  const t=new Date().toDateString();
+  if(S.today!==t){
+    const y=new Date(Date.now()-864e5).toDateString();
+    if(S.lastDay!==y&&S.lastDay!==t)S.streak=0;
+    S.todayN=0;S.today=t;save();
+  }
+}
+function record(){
+  const t=new Date().toDateString();
+  if(S.lastDay!==t){S.streak++;S.lastDay=t;}
+  S.todayN++;save();
+}
+
+// ══════════ UI ══════════
+let Q=[],ci=0;
+function init(){checkStreak();renderFilters();loadSet();startSession();updStreak();updGoal();}
+
+// Tabs
+document.querySelectorAll('.nav button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.screen').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById('screen-'+b.dataset.tab).classList.add('active');
+    if(b.dataset.tab==='stats')updStats();
+    if(b.dataset.tab==='browse')renderBrowse();
+    if(b.dataset.tab==='study')renderLearnSetup();
+  });
+});
+
+// Lektion filters
+function renderFilters(){
+  const lks=[...new Set(V.map(w=>w.lk))].sort((a,b)=>a-b);
+  ['lkFilter','bFilter'].forEach(id=>{
+    const c=document.getElementById(id);
+    c.innerHTML=`<button class="${S.selLk.length===0?'active':''}" onclick="selLk('${id}','all')">All</button>`;
+    lks.forEach(l=>{c.innerHTML+=`<button class="${S.selLk.includes(l)?'active':''}" onclick="selLk('${id}',${l})">L${l}</button>`;});
+  });
+}
+function selLk(src,lk){
+  if(lk==='all')S.selLk=[];
+  else{const i=S.selLk.indexOf(lk);if(i>=0)S.selLk.splice(i,1);else S.selLk.push(lk);}
+  save();renderFilters();
+  if(src==='lkFilter')startSession();
+  if(src==='bFilter')renderBrowse();
+}
+
+// Session
+function startSession(){Q=due(S.selLk);ci=0;showCard();}
+function showCard(){
+  const card=document.getElementById('card');card.classList.remove('flipped');
+  if(ci>=Q.length){
+    document.getElementById('cardWrap').style.display='none';
+    document.getElementById('btns').style.display='none';
+    document.getElementById('done').style.display='block';
+    updPbar();return;
+  }
+  document.getElementById('cardWrap').style.display='block';
+  document.getElementById('btns').style.display='flex';
+  document.getElementById('done').style.display='none';
+  const w=V[Q[ci]];
+  const dir=S.dir==='mixed'?(Math.random()>0.5?'de-en':'en-de'):S.dir;
+  if(dir==='de-en'){
+    document.getElementById('cWord').textContent=w.de;
+    document.getElementById('cPl').textContent='';
+    document.getElementById('cEn').textContent=w.en;
+    document.getElementById('cRu').textContent=w.ru;
+  }else{
+    document.getElementById('cWord').textContent=w.en;
+    document.getElementById('cPl').textContent='';
+    document.getElementById('cEn').textContent=w.de;
+    document.getElementById('cRu').textContent=w.ru;
+  }
+  document.getElementById('cLk').textContent='L'+w.lk;
+  updPbar();
+}
+function flip(){document.getElementById('card').classList.toggle('flipped');}
+function ans(ok){
+  const p=gp(Q[ci]);
+  p.box=ok?Math.min(p.box+1,4):Math.max(p.box-1,0);
+  p.next=Date.now()+BOX[p.box]*864e5;p.seen=Date.now();
+  record();save();updStreak();ci++;showCard();
+}
+function updPbar(){
+  const pct=Q.length>0?(ci/Q.length*100):100;
+  document.getElementById('pbar').style.width=pct+'%';
+  document.getElementById('ptext').textContent=ci+' / '+Q.length+' words';
+}
+function updStreak(){document.getElementById('streakN').textContent=S.streak;}
+
+// ══════════ LEARN SESSION ══════════
+let LS={mode:'not_learned',lks:[],queue:[],done:[],again:0,gotIt:0,revealed:false,total:0};
+
+function renderLearnSetup(){
+  const now=Date.now();
+  const filt=i=>LS.lks.length===0||LS.lks.includes(V[i].lk);
+  const notLearned=V.map((_,i)=>i).filter(i=>filt(i)&&(!S.prog[i]||!S.prog[i].seen)).length;
+  const dueCount=V.map((_,i)=>i).filter(i=>filt(i)&&gp(i).next<=now).length;
+  const allCount=V.filter((_,i)=>filt(i)).length;
+  const modes=[
+    {id:'not_learned',label:'Not Learned Yet',count:notLearned},
+    {id:'due',label:'Due for Review',count:dueCount},
+    {id:'all',label:'All Words (Random)',count:allCount},
+  ];
+  document.getElementById('lsModes').innerHTML=modes.map(m=>
+    `<button class="ls-mode${LS.mode===m.id?' active':''}" onclick="setLearnMode('${m.id}')">
+      <span>${m.label}</span><span class="ls-cnt">${m.count}</span>
+    </button>`).join('');
+  const lks=[...new Set(V.map(w=>w.lk))].sort((a,b)=>a-b);
+  document.getElementById('lsLks').innerHTML=
+    `<button class="${LS.lks.length===0?'active':''}" onclick="toggleLearnLk('all')">All</button>`+
+    lks.map(l=>`<button class="${LS.lks.includes(l)?'active':''}" onclick="toggleLearnLk(${l})">L${l}</button>`).join('');
+  updateLearnGoBtn();
+}
+function setLearnMode(m){LS.mode=m;renderLearnSetup();}
+function toggleLearnLk(lk){
+  if(lk==='all')LS.lks=[];
+  else{const i=LS.lks.indexOf(lk);if(i>=0)LS.lks.splice(i,1);else LS.lks.push(lk);}
+  renderLearnSetup();
+}
+function getLearnWords(){
+  const now=Date.now();
+  let idx=V.map((_,i)=>i);
+  if(LS.lks.length>0)idx=idx.filter(i=>LS.lks.includes(V[i].lk));
+  if(LS.mode==='not_learned')idx=idx.filter(i=>!S.prog[i]||!S.prog[i].seen);
+  else if(LS.mode==='due')idx=idx.filter(i=>gp(i).next<=now);
+  for(let i=idx.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]];}
+  return idx;
+}
+function updateLearnGoBtn(){
+  const n=getLearnWords().length;
+  const btn=document.getElementById('lsGo');
+  btn.textContent=n>0?`Start Session (${n} words)`:'No words available';
+  btn.disabled=n===0;
+}
+function startLearnSession(){
+  const words=getLearnWords();if(words.length===0)return;
+  LS.queue=[...words];LS.done=[];LS.again=0;LS.gotIt=0;LS.total=words.length;LS.revealed=false;
+  document.getElementById('lsSetup').style.display='none';
+  document.getElementById('lsActive').style.display='flex';
+  document.getElementById('lsDone').style.display='none';
+  showLearnCard();
+}
+function showLearnCard(){
+  if(LS.queue.length===0){endLearn();return;}
+  LS.revealed=false;
+  const w=V[LS.queue[0]];
+  document.getElementById('lsWord').textContent=w.de;
+  document.getElementById('lsLk').textContent='L'+w.lk;
+  document.getElementById('lsEn').textContent=w.en;
+  document.getElementById('lsRu').textContent=w.ru;
+  document.getElementById('lsHint').style.display='';
+  document.getElementById('lsReveal').style.display='none';
+  document.getElementById('lsBtns').style.display='none';
+  const done=LS.done.length;
+  const pct=LS.total>0?(done/LS.total*100):0;
+  document.getElementById('lsProgFill').style.width=pct+'%';
+  document.getElementById('lsProgText').textContent=done+'/'+LS.total;
+}
+function revealLearn(){
+  if(LS.revealed||LS.queue.length===0)return;
+  LS.revealed=true;
+  document.getElementById('lsHint').style.display='none';
+  document.getElementById('lsReveal').style.display='';
+  document.getElementById('lsBtns').style.display='flex';
+}
+function learnAnswer(gotIt){
+  if(!LS.revealed)return;
+  const idx=LS.queue.shift();
+  const p=gp(idx);
+  if(gotIt){
+    p.box=Math.min(p.box+1,4);
+    p.next=Date.now()+BOX[p.box]*864e5;
+    p.seen=Date.now();
+    record();save();updStreak();
+    LS.gotIt++;LS.done.push(idx);
+  }else{
+    p.box=0;p.next=0;
+    if(!p.seen)p.seen=Date.now();
+    save();LS.again++;
+    LS.queue.push(idx);
+  }
+  showLearnCard();
+}
+function endLearn(){
+  document.getElementById('lsActive').style.display='none';
+  document.getElementById('lsDone').style.display='';
+  document.getElementById('lsDoneStats').innerHTML=`
+    <div class="ls-done-stat"><div class="num" style="color:var(--green)">${LS.gotIt}</div><div class="lbl">Words Learned</div></div>
+    <div class="ls-done-stat"><div class="num" style="color:var(--orange)">${LS.again}</div><div class="lbl">Times Repeated</div></div>
+    <div class="ls-done-stat"><div class="num" style="color:var(--accent)">${LS.total}</div><div class="lbl">Total in Session</div></div>
+    <div class="ls-done-stat"><div class="num" style="color:var(--text)">${S.todayN}</div><div class="lbl">Reviewed Today</div></div>`;
+}
+function resetLearn(){
+  document.getElementById('lsSetup').style.display='';
+  document.getElementById('lsActive').style.display='none';
+  document.getElementById('lsDone').style.display='none';
+  renderLearnSetup();
+}
+
+// Browse
+document.getElementById('searchBox').addEventListener('input',renderBrowse);
+function renderBrowse(){
+  const q=document.getElementById('searchBox').value.toLowerCase();
+  let items=V.map((w,i)=>({...w,i}));
+  if(S.selLk.length>0)items=items.filter(w=>S.selLk.includes(w.lk));
+  if(q)items=items.filter(w=>w.de.toLowerCase().includes(q)||w.en.toLowerCase().includes(q)||w.ru.toLowerCase().includes(q));
+  document.getElementById('wcount').textContent=items.length+' words';
+  const colors=['#ef5350','#ff7043','#ffa726','#66bb6a','#4fc3f7'];
+  document.getElementById('wlist').innerHTML=items.map(w=>{
+    const p=S.prog[w.i];const box=p?p.box:0;
+    return`<div class="witem">
+      <div class="witem-left">
+        <div class="witem-de">${w.de}</div>
+        <div class="witem-en">${w.en}</div>
+        <div class="witem-ru">${w.ru}</div>
+      </div>
+      <div class="witem-right">
+        <span class="witem-lk">L${w.lk}</span>
+        <span class="dot" style="background:${colors[box]}"></span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Stats
+function updStats(){
+  const total=V.length;
+  const learned=Object.values(S.prog).filter(p=>p.seen>0).length;
+  const notLearned=total-learned;
+  const mastered=Object.values(S.prog).filter(p=>p.box>=3).length;
+  document.getElementById('sTotal').textContent=total;
+  document.getElementById('sToday').textContent=S.todayN;
+  document.getElementById('sStreak').textContent=S.streak;
+  document.getElementById('sMaster').textContent=mastered;
+  // bar
+  const lPct=total>0?(learned/total*100):0;
+  const nPct=total>0?(notLearned/total*100):0;
+  document.getElementById('barLearned').style.width=lPct+'%';
+  document.getElementById('barNotLearned').style.width=nPct+'%';
+  document.getElementById('nLearned').textContent=learned;
+  document.getElementById('nNotLearned').textContent=notLearned;
+  // per lektion
+  const lks=[...new Set(V.map(w=>w.lk))].sort((a,b)=>a-b);
+  const c=document.getElementById('lkProgress');c.innerHTML='';
+  lks.forEach(lk=>{
+    const ws=V.map((w,i)=>({w,i})).filter(({w})=>w.lk===lk);
+    const t=ws.length;const k=ws.filter(({i})=>{const p=S.prog[i];return p&&p.box>=2;}).length;
+    const pct=t>0?Math.round(k/t*100):0;
+    c.innerHTML+=`<div class="lk-row"><span class="lbl">Lektion ${lk}</span><div class="bar"><div class="bar-f" style="width:${pct}%;background:${pct>=80?'var(--green)':pct>=40?'var(--accent)':'var(--red)'}"></div></div><span class="pct">${pct}%</span></div>`;
+  });
+}
+function updGoal(){
+  const d=Math.ceil((new Date('2027-01-01')-new Date())/864e5);
+  document.getElementById('goalDays').textContent=d+' days remaining';
+}
+
+// Settings
+function loadSet(){document.getElementById('dGoal').value=S.goal;document.getElementById('dirSet').value=S.dir;}
+function saveGoal(){S.goal=parseInt(document.getElementById('dGoal').value)||7;save();}
+function saveDir(){S.dir=document.getElementById('dirSet').value;save();}
+function resetAll(){if(confirm('Reset all progress?')){localStorage.removeItem(SK);S=def();save();init();}}
+function exportData(){
+  const b=new Blob([JSON.stringify(S,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='wortblitz-backup.json';a.click();
+}
+
+// Keyboard
+document.addEventListener('keydown',e=>{
+  const lsOn=document.getElementById('screen-study').classList.contains('active')&&document.getElementById('lsActive').style.display!=='none';
+  if(lsOn){
+    if(e.key===' '||e.key==='Enter'){e.preventDefault();revealLearn();}
+    if(e.key==='ArrowRight'&&LS.revealed)learnAnswer(true);
+    if(e.key==='ArrowLeft'&&LS.revealed)learnAnswer(false);
+    return;
+  }
+  if(e.key===' '||e.key==='Enter'){e.preventDefault();flip();}
+  if(e.key==='ArrowRight')ans(true);
+  if(e.key==='ArrowLeft')ans(false);
+});
+
+init();
+</script>
+</body>
+</html>
