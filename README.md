@@ -14,7 +14,7 @@ A German vocabulary flashcard app with spaced repetition, built for learners tar
 
 ## Word List
 
-180+ curated words from Lektionen 5-15, covering:
+380+ curated words from Lektionen 5-24, covering:
 - Everyday objects, colors, materials (L5)
 - Work & communication (L6)
 - Hobbies & abilities (L7)
@@ -24,6 +24,15 @@ A German vocabulary flashcard app with spaced repetition, built for learners tar
 - Shopping & past tense (L11)
 - Weather & seasons (L12)
 - City & housing (L13-15)
+- Appliances & repairs (L16)
+- Careers & future plans (L17)
+- Body parts & health (L18)
+- Household chores (L19)
+- People & appearance (L20)
+- Rules & regulations (L21)
+- Clothing & fashion (L22)
+- Weather & nature (L23)
+- Events & celebrations (L24)
 
 ## Tech Stack
 
