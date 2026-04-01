@@ -1,4 +1,4 @@
-const CACHE = 'wortblitz-v1';
+const CACHE = 'wortblitz-v2';
 const ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', e => {
